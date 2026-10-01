@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Car Tracker Pro — Dashboard Evoluta</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="CarMon">
+<meta name="theme-color" content="#f5f5f0">
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,600,700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+<style>
+/* ── Design System ────────────────────────────────────────────── */
+:root {
+  --bg: #f5f5f0; --surf: #ffffff; --surfoff: #f8f7f4;
+  --brd: #e2e0db; --div: #ece9e4;
+  --txt: #1a1814; --muted: #716e69;
+  --pri: #059669; --cp: #2563eb; --ck: #f97316;
+}
+[data-theme="dark"] {
+  --bg: #0f1012; --surf: #181a1d; --surfoff: #1f2226;
+  --brd: #2d3136; --div: #25282c;
+  --txt: #ececec; --muted: #a1a1a1;
+}
+body { font-family: 'Satoshi', sans-serif; background: var(--bg); color: var(--txt); margin: 0; padding: 1.5rem; transition: background 0.3s; }
+.container { max-width: 1100px; margin: 0 auto; }
+header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem; }
+.card { background: var(--surf); border: 1px solid var(--brd); border-radius: 1.25rem; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+.chart-wrap { background: var(--surf); border: 1px solid var(--brd); border-radius: 1.25rem; padding: 1.5rem; height: 500px; margin-bottom: 1.5rem; }
+.table-wrap { background: var(--surf); border: 1px solid var(--brd); border-radius: 1.25rem; overflow: hidden; }
+table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+th { background: var(--surfoff); padding: 1rem; text-align: left; font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+td { padding: 0.8rem 1rem; border-bottom: 1px solid var(--div); }
+.btn { border: none; padding: 0.6rem 1.2rem; border-radius: 0.75rem; font-weight: 600; cursor: pointer; font-family: inherit; transition: 0.2s; display: inline-flex; align-items: center; gap: 0.5rem; }
+.btn-p { background: var(--pri); color: white; }
+.btn-s { background: var(--surfoff); color: var(--txt); border: 1px solid var(--brd); }
+.modal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 100; }
+.modal.show { display: flex; }
+.modal-content { background: var(--surf); padding: 2rem; border-radius: 1.5rem; width: 400px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+input, select, textarea { width: 100%; padding: 0.75rem; border-radius: 0.6rem; border: 1px solid var(--brd); background: var(--bg); color: var(--txt); margin-top: 0.5rem; font-family: inherit; }
+/* ── Aggiunte note ── */
+textarea { font-size: 0.9rem; line-height: 1.45; resize: vertical; box-sizing: border-box; }
+.note-preview { font-size: 0.8rem; padding: 0.35rem 0.7rem; max-width: 230px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.note-body { white-space: pre-wrap; word-break: break-word; font-size: 0.9rem; line-height: 1.55; background: var(--surfoff); border: 1px solid var(--brd); border-radius: 0.75rem; padding: 1rem; max-height: 300px; overflow-y: auto; }
+/* ── Aggiunte persistenza ── */
+.btn-sm { padding: 0.4rem 0.8rem; font-size: 0.8rem; border-radius: 0.6rem; }
+#storage-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; margin-bottom: 1.5rem; font-size: 0.82rem; color: var(--muted); }
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+.fld { margin-bottom: 0.9rem; }
+.fld label { font-size: 0.8rem; font-weight: bold; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div>
+        <h1 style="margin:0; font-size: 1.5rem;">Gestione Flotta</h1>
+        <p style="margin:0; color:var(--muted); font-size: 0.9rem;">Analisi scadenze 15.000 km / 1 Anno</p>
+    </div>
+    <div style="display:flex; gap:0.5rem;">
+        <button class="btn btn-s" onclick="toggleTheme()">Tema</button>
+        <button class="btn btn-p" onclick="openModal()">+ Nuova Lettura</button>
+    </div>
+  </header>
+
+  <div id="storage-bar"></div>
+  <input type="file" id="f-import" accept=".json,.txt,application/json,text/plain" style="display:none" onchange="importBackup(event)">
+
+  <div class="grid" id="car-cards"></div>
+  <div class="chart-wrap"><canvas id="mainChart"></canvas></div>
+  
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Auto</th><th>Data</th><th>Km</th><th>Tipo</th><th>Note</th><th>Azioni</th></tr></thead>
+      <tbody id="table-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="modal" id="entry-modal">
+  <div class="modal-content">
+    <h3 id="modal-title" style="margin-top:0">Aggiungi Dati</h3>
+    <input type="hidden" id="edit-index">
+    <input type="hidden" id="edit-car-id">
+    <div style="margin-bottom: 1rem">
+      <label class="stat-lbl" style="font-size:0.8rem; font-weight:bold; color:var(--muted)">Veicolo</label>
+      <select id="f-car">
+          <option value="picanto">KIA Picanto</option>
+          <option value="prius">Toyota Prius</option>
+      </select>
+    </div>
+    <div style="margin-bottom: 1rem">
+      <label class="stat-lbl" style="font-size:0.8rem; font-weight:bold; color:var(--muted)">Chilometraggio</label>
+      <input type="number" id="f-km">
+    </div>
+    <div style="margin-bottom: 1rem">
+      <label class="stat-lbl" style="font-size:0.8rem; font-weight:bold; color:var(--muted)">Data</label>
+      <input type="date" id="f-date">
+    </div>
+    <div style="margin-bottom: 1rem">
+      <label class="stat-lbl" style="font-size:0.8rem; font-weight:bold; color:var(--muted)">Tipo di inserimento</label>
+      <select id="f-type" onchange="toggleNoteField()">
+          <option value="Rilevazione">Sola lettura</option>
+          <option value="Tagliando">Tagliando</option>
+          <option value="Intervento">Interventi</option>
+      </select>
+    </div>
+    <div style="margin-bottom: 1.5rem; display:none" id="note-group">
+      <label class="stat-lbl" style="font-size:0.8rem; font-weight:bold; color:var(--muted)">Note (costi, lavorazioni)</label>
+      <textarea id="f-note" rows="4" placeholder="Es. Sostituzione pastiglie freni anteriori, 180 €&#10;Filtro aria e filtro abitacolo, 45 €"></textarea>
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem">
+      <button class="btn btn-p" onclick="saveEntry()">Salva</button>
+      <button class="btn btn-s" onclick="closeModal()">Annulla</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="note-modal">
+  <div class="modal-content">
+    <h3 id="note-title" style="margin-top:0">Nota</h3>
+    <div id="note-meta" style="font-size:0.8rem; color:var(--muted); margin-bottom:1rem"></div>
+    <div id="note-body" class="note-body"></div>
+    <div style="margin-top:1.5rem">
+      <button class="btn btn-s" onclick="closeNoteModal()" style="width:100%; justify-content:center">Chiudi</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="gh-modal">
+  <div class="modal-content">
+    <h3 style="margin-top:0">Collegamento a GitHub</h3>
+    <div class="fld"><label>Utente o organizzazione</label><input type="text" id="gh-owner" placeholder="tuonome"></div>
+    <div class="fld"><label>Repository</label><input type="text" id="gh-repo" placeholder="flotta"></div>
+    <div class="fld"><label>Percorso del file</label><input type="text" id="gh-path" placeholder="flotta.json"></div>
+    <div class="fld"><label>Branch</label><input type="text" id="gh-branch" placeholder="main"></div>
+    <div class="fld"><label>Token (fine-grained, Contents read/write)</label><input type="password" id="gh-token" placeholder="github_pat_..."></div>
+    <p style="font-size:0.75rem; color:var(--muted); line-height:1.4; margin:0 0 1.2rem">Il token resta solo in questo browser, non viene mai scritto nel file HTML né nel JSON.</p>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem">
+      <button class="btn btn-p" onclick="saveGhConfig()">Collega</button>
+      <button class="btn btn-s" onclick="closeGhModal()">Annulla</button>
+    </div>
+    <button class="btn btn-s" onclick="clearGhConfig()" style="width:100%; justify-content:center; margin-top:0.75rem; color:#ef4444">Scollega e cancella token</button>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+const SCHEMA_VERSION = 1;
+const LS_KEY = 'car_db_v7';
+const LS_EXPORT_KEY = 'car_last_export';
+const LS_GH_CFG = 'car_gh_cfg';
+const LS_GH_TOKEN = 'car_gh_token';
+
+// 1. DATI STORICI ESATTI
+const DEFAULT_DB = {
+  picanto: {
+    id: 'picanto', name: 'KIA Picanto', color: '#f97316', emoji: '🚙',
+    limitKm: 15000, limitYr: 1,
+    readings: [
+      { date: '2025-04-01', km: 0, type: 'Tagliando' },
+      { date: '2025-11-13', km: 10505, type: 'Tagliando' },
+      { date: '2026-04-11', km: 15014, type: 'Rilevazione' }
+    ]
+  },
+  prius: {
+    id: 'prius', name: 'Toyota Prius', color: '#2563eb', emoji: '🚗',
+    limitKm: 15000, limitYr: 1,
+    readings: [
+      { date: '2026-01-05', km: 5220, type: 'Tagliando' },
+      { date: '2026-04-11', km: 9842, type: 'Rilevazione' }
+    ]
+  }
+};
+
+let db;
+try { db = JSON.parse(localStorage.getItem(LS_KEY)) || DEFAULT_DB; } catch(e) { db = DEFAULT_DB; }
+
+let lastExport = null;
+try { lastExport = localStorage.getItem(LS_EXPORT_KEY); } catch(e) {}
+
+let chart = null;
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, function(c) {
+    return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PERSISTENZA
+   1. localStorage → cache locale immediata
+   2. GitHub API   → file vivo, lettura all'avvio e scrittura a ogni salvataggio
+   3. Export/Import → backup portabile
+   ══════════════════════════════════════════════════════════════ */
+
+let ghCfg = { owner:'', repo:'', path:'flotta.json', branch:'main' };
+try {
+  const saved = JSON.parse(localStorage.getItem(LS_GH_CFG));
+  if (saved) ghCfg = Object.assign(ghCfg, saved);
+} catch(e) {}
+let ghToken = '';
+try { ghToken = localStorage.getItem(LS_GH_TOKEN) || ''; } catch(e) {}
+
+let ghSha = null;
+let ghStatus = 'off';   // off | sync | ok | error
+let ghError = '';
+let lastSync = null;
+let pushTimer = null;
+
+function ghReady() { return !!(ghCfg.owner && ghCfg.repo && ghCfg.path && ghToken); }
+function ghUrl() {
+  return 'https://api.github.com/repos/' + encodeURIComponent(ghCfg.owner) + '/' +
+         encodeURIComponent(ghCfg.repo) + '/contents/' +
+         ghCfg.path.split('/').map(encodeURIComponent).join('/');
+}
+function ghHeaders() {
+  return {
+    'Authorization': 'Bearer ' + ghToken,
+    'Accept': 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28',
+    'Content-Type': 'application/json'
+  };
+}
+
+// Base64 sicuro con caratteri accentati
+function b64encode(str) {
+  const bytes = new TextEncoder().encode(str);
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin);
+}
+function b64decode(b64) {
+  const bin = atob(String(b64).replace(/\s/g, ''));
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+
+function buildPayload() {
+  return { app:'car-tracker-pro', schemaVersion:SCHEMA_VERSION, savedAt:new Date().toISOString(), cars: db };
+}
+function extractCars(parsed) { return (parsed && parsed.cars) ? parsed.cars : parsed; }
+function isValidDb(obj) {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return false;
+  const keys = Object.keys(obj);
+  if (keys.length === 0) return false;
+  return keys.every(function(k) { return obj[k] && Array.isArray(obj[k].readings); });
+}
+
+// ── Lettura dal file su GitHub ──
+async function ghPull(silent) {
+  if (!ghReady()) return false;
+  ghStatus = 'sync'; renderStorageBar();
+  try {
+    const res = await fetch(ghUrl() + '?ref=' + encodeURIComponent(ghCfg.branch) + '&t=' + Date.now(),
+                            { headers: ghHeaders(), cache: 'no-store' });
+    if (res.status === 404) { ghSha = null; ghStatus = 'ok'; renderStorageBar(); return false; }
+    if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+    const j = await res.json();
+    ghSha = j.sha;
+    const cars = extractCars(JSON.parse(b64decode(j.content)));
+    if (!isValidDb(cars)) throw new Error('contenuto del file non valido');
+    db = cars;
+    ghStatus = 'ok'; ghError = ''; lastSync = new Date().toISOString();
+    refresh(true);
+    return true;
+  } catch(e) {
+    ghStatus = 'error'; ghError = e.message || String(e);
+    renderStorageBar();
+    if (!silent) alert('Lettura da GitHub non riuscita: ' + ghError);
+    return false;
+  }
+}
+
+// ── Scrittura sul file su GitHub ──
+async function ghPush() {
+  if (!ghReady()) return;
+  ghStatus = 'sync'; renderStorageBar();
+  try {
+    const body = {
+      message: 'flotta: aggiornamento ' + new Date().toLocaleString('it-IT'),
+      content: b64encode(JSON.stringify(buildPayload(), null, 2)),
+      branch: ghCfg.branch
+    };
+    if (ghSha) body.sha = ghSha;
+
+    let res = await fetch(ghUrl(), { method:'PUT', headers: ghHeaders(), body: JSON.stringify(body) });
+
+    // Conflitto: il file remoto è cambiato da un altro dispositivo
+    if (res.status === 409 || res.status === 422) {
+      const remote = await fetch(ghUrl() + '?ref=' + encodeURIComponent(ghCfg.branch) + '&t=' + Date.now(),
+                                 { headers: ghHeaders(), cache:'no-store' });
+      if (remote.ok) {
+        const rj = await remote.json();
+        ghSha = rj.sha;
+        const force = confirm('Il file su GitHub è stato modificato altrove.\n\nOK = sovrascrivo con i dati di questo dispositivo\nAnnulla = scarto le mie modifiche e ricarico da GitHub');
+        if (!force) { await ghPull(true); return; }
+        body.sha = ghSha;
+        res = await fetch(ghUrl(), { method:'PUT', headers: ghHeaders(), body: JSON.stringify(body) });
+      }
+    }
+
+    if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+    const j = await res.json();
+    ghSha = (j.content && j.content.sha) ? j.content.sha : ghSha;
+    ghStatus = 'ok'; ghError = ''; lastSync = new Date().toISOString();
+  } catch(e) {
+    ghStatus = 'error'; ghError = e.message || String(e);
+  }
+  renderStorageBar();
+}
+
+function schedulePush() {
+  if (!ghReady()) return;
+  clearTimeout(pushTimer);
+  pushTimer = setTimeout(ghPush, 1200); // accorpa modifiche ravvicinate in un solo commit
+}
+
+// ── Configurazione ──
+function openGhModal() {
+  document.getElementById('gh-owner').value = ghCfg.owner;
+  document.getElementById('gh-repo').value = ghCfg.repo;
+  document.getElementById('gh-path').value = ghCfg.path;
+  document.getElementById('gh-branch').value = ghCfg.branch;
+  document.getElementById('gh-token').value = ghToken;
+  document.getElementById('gh-modal').classList.add('show');
+}
+function closeGhModal() { document.getElementById('gh-modal').classList.remove('show'); }
+
+async function saveGhConfig() {
+  ghCfg = {
+    owner: document.getElementById('gh-owner').value.trim(),
+    repo: document.getElementById('gh-repo').value.trim(),
+    path: (document.getElementById('gh-path').value.trim() || 'flotta.json').replace(/^\/+/, ''),
+    branch: document.getElementById('gh-branch').value.trim() || 'main'
+  };
+  ghToken = document.getElementById('gh-token').value.trim();
+  try {
+    localStorage.setItem(LS_GH_CFG, JSON.stringify(ghCfg));
+    localStorage.setItem(LS_GH_TOKEN, ghToken);
+  } catch(e) {}
+  closeGhModal();
+
+  if (!ghReady()) { ghStatus = 'off'; renderStorageBar(); return; }
+
+  const found = await ghPull(true);
+  if (found) {
+    alert('Collegato. Dati caricati dal file su GitHub.');
+  } else if (ghStatus !== 'error') {
+    if (confirm('Il file non esiste ancora su GitHub.\nLo creo con i dati attualmente presenti in questo browser?')) {
+      await ghPush();
+    }
+  }
+  renderStorageBar();
+}
+
+function clearGhConfig() {
+  if (!confirm('Scollego GitHub e cancello il token da questo browser. Procedere?')) return;
+  ghToken = ''; ghSha = null; ghStatus = 'off'; ghError = ''; lastSync = null;
+  try { localStorage.removeItem(LS_GH_TOKEN); } catch(e) {}
+  closeGhModal();
+  renderStorageBar();
+}
+
+// ── Export e import manuale ──
+function exportBackup() {
+  const blob = new Blob([JSON.stringify(buildPayload(), null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'flotta_' + new Date().toISOString().slice(0, 10) + '.json';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+  lastExport = new Date().toISOString();
+  try { localStorage.setItem(LS_EXPORT_KEY, lastExport); } catch(e) {}
+  renderStorageBar();
+}
+
+function triggerImport() { document.getElementById('f-import').click(); }
+
+function importBackup(ev) {
+  const file = ev.target.files && ev.target.files[0];
+  ev.target.value = '';
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function() {
+    try {
+      const cars = extractCars(JSON.parse(reader.result));
+      if (!isValidDb(cars)) throw new Error('struttura non riconosciuta');
+      if (!confirm('I dati attuali verranno sostituiti da quelli del file. Procedere?')) return;
+      db = cars;
+      refresh();
+      alert('Backup importato.');
+    } catch(e) {
+      alert('File non valido: ' + (e && e.message ? e.message : e));
+    }
+  };
+  reader.onerror = function() { alert('Lettura del file non riuscita.'); };
+  reader.readAsText(file);
+}
+
+// ── Barra di stato ──
+function renderStorageBar() {
+  const bar = document.getElementById('storage-bar');
+  if (!bar) return;
+  let dot = 'var(--muted)', txt = '', actions = '';
+
+  if (!ghReady()) {
+    txt = 'GitHub non collegato, i dati restano solo in questo browser';
+    actions += '<button class="btn btn-s btn-sm" onclick="openGhModal()">⚙ Collega GitHub</button>';
+  } else if (ghStatus === 'sync') {
+    dot = 'var(--ck)';
+    txt = 'Sincronizzazione in corso…';
+  } else if (ghStatus === 'error') {
+    dot = '#ef4444';
+    txt = 'Errore GitHub: ' + escapeHtml(ghError);
+    actions += '<button class="btn btn-s btn-sm" onclick="ghPush()">Riprova</button>' +
+               '<button class="btn btn-s btn-sm" onclick="openGhModal()">⚙</button>';
+  } else {
+    dot = 'var(--pri)';
+    txt = 'File vivo su <strong>' + escapeHtml(ghCfg.owner + '/' + ghCfg.repo + '/' + ghCfg.path) + '</strong>';
+    if (lastSync) txt += ', ultimo sync ' + new Date(lastSync).toLocaleTimeString('it-IT');
+    actions += '<button class="btn btn-s btn-sm" onclick="ghPull()">↻ Ricarica</button>' +
+               '<button class="btn btn-s btn-sm" onclick="openGhModal()">⚙</button>';
+  }
+
+  let backup, backupColor = 'var(--muted)';
+  if (!lastExport) { backup = 'nessun backup esportato'; backupColor = 'var(--ck)'; }
+  else {
+    const days = Math.floor((Date.now() - new Date(lastExport).getTime()) / 86400000);
+    backup = 'ultimo backup ' + new Date(lastExport).toLocaleDateString('it-IT');
+    if (days > 30) { backup += ' (' + days + ' giorni fa)'; backupColor = 'var(--ck)'; }
+  }
+
+  bar.innerHTML =
+    '<span class="dot" style="background:' + dot + '"></span>' +
+    '<span>' + txt + '</span>' +
+    '<span style="color:var(--brd)">|</span>' +
+    '<span style="color:' + backupColor + '">' + backup + '</span>' +
+    '<span style="margin-left:auto; display:flex; gap:0.5rem; flex-wrap:wrap">' + actions +
+      '<button class="btn btn-s btn-sm" onclick="exportBackup()">↓ Esporta</button>' +
+      '<button class="btn btn-s btn-sm" onclick="triggerImport()">↑ Importa</button>' +
+    '</span>';
+}
+
+// 2. LOGICA MATEMATICA (Sicura)
+function getLinReg(readings) {
+  const n = readings.length;
+  if (n < 2) return null;
+  let sx=0, sy=0, sxy=0, sx2=0;
+  readings.forEach(r => {
+    const x = new Date(r.date).getTime() / 86400000;
+    const y = r.km;
+    sx+=x; sy+=y; sxy+=x*y; sx2+=x*x;
+  });
+  const denom = (n*sx2 - sx*sx);
+  if (denom === 0) return null;
+  const m = (n*sxy - sx*sy) / denom;
+  const b = (sy - m*sx) / n;
+  return { m, b };
+}
+
+// 3. UI RENDERING
+function refresh(skipRemote) {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(db)); } catch(e) {}
+  renderCards();
+  renderTable();
+  updateChart();
+  renderStorageBar();
+  if (!skipRemote) schedulePush();
+}
+
+function renderCards() {
+  const container = document.getElementById('car-cards');
+  container.innerHTML = '';
+  Object.values(db).forEach(car => {
+    const sorted = [...car.readings].sort((a,b)=>new Date(a.date)-new Date(b.date));
+    const cur = sorted.length > 0 ? sorted[sorted.length - 1] : null; 
+    const kmStr = cur ? cur.km.toLocaleString() : '0';
+    const dateStr = cur ? new Date(cur.date).toLocaleDateString() : '--/--/----';
+    container.innerHTML += `
+      <div class="card">
+        <div style="color:var(--muted); font-size:0.75rem; text-transform:uppercase; font-weight:700">${car.emoji} ${car.name}</div>
+        <div style="font-size:2rem; font-weight:700; margin:0.5rem 0">${kmStr} <span style="font-size:1rem; font-weight:400; color:var(--muted)">km</span></div>
+        <div style="font-size:0.85rem; color:var(--muted)">Ultima lettura: ${dateStr}</div>
+      </div>`;
+  });
+}
+
+function typeColor(type) {
+  if (type === 'Tagliando') return 'var(--pri)';
+  if (type === 'Intervento') return 'var(--ck)';
+  return 'var(--muted)';
+}
+
+function renderTable() {
+  const body = document.getElementById('table-body');
+  body.innerHTML = '';
+  Object.values(db).forEach(car => {
+    const sortedReadings = [...car.readings].sort((a,b) => new Date(b.date) - new Date(a.date));
+    sortedReadings.forEach((r) => {
+      const originalIdx = car.readings.indexOf(r);
+      const note = (r.note || '').trim();
+      const preview = note.length > 26 ? note.slice(0, 26) + '…' : note;
+      const noteCell = note
+        ? `<button class="btn btn-s note-preview" onclick="showNote('${car.id}', ${originalIdx})" title="Apri la nota">📝 ${escapeHtml(preview)}</button>`
+        : `<span style="color:var(--muted)">—</span>`;
+      body.innerHTML += `
+        <tr>
+          <td><strong>${car.name}</strong></td>
+          <td>${new Date(r.date).toLocaleDateString('it-IT')}</td>
+          <td>${r.km.toLocaleString()} km</td>
+          <td><span style="color:${typeColor(r.type)}; font-weight:600">${r.type}</span></td>
+          <td>${noteCell}</td>
+          <td>
+            <button class="btn btn-s" onclick="editEntry('${car.id}', ${originalIdx})" title="Modifica">✏️</button>
+            <button class="btn btn-s" onclick="deleteEntry('${car.id}', ${originalIdx})" style="color:#ef4444" title="Elimina">🗑️</button>
+          </td>
+        </tr>`;
+    });
+  });
+}
+
+function updateChart() {
+  const ctx = document.getElementById('mainChart').getContext('2d');
+  if (chart) chart.destroy();
+
+  const datasets = [];
+  const today = new Date();
+
+  Object.values(db).forEach(car => {
+    const readings = [...car.readings].sort((a,b) => new Date(a.date) - new Date(b.date));
+    if (readings.length === 0) return;
+
+    // Solo il Tagliando azzera il contatore
+    const lastSvc = [...readings].reverse().find(r => r.type === 'Tagliando');
+    const reg = getLinReg(readings);
+    const lastReading = readings[readings.length - 1];
+
+    datasets.push({
+      label: `${car.name}`,
+      data: readings.map(r => ({ x: new Date(r.date), y: r.km })),
+      borderColor: car.color,
+      backgroundColor: car.color,
+      pointRadius: readings.map(r => r.type === 'Intervento' ? 7 : 5),
+      pointStyle: readings.map(r => r.type === 'Intervento' ? 'rect' : 'circle'),
+      pointHitRadius: 10,
+      tension: 0.1
+    });
+
+    if (reg && lastSvc && reg.m > 0) {
+      const targetKmVal = lastSvc.km + car.limitKm;
+      const targetDateVal = new Date(lastSvc.date);
+      targetDateVal.setFullYear(targetDateVal.getFullYear() + car.limitYr);
+
+      const dateAt15k = new Date(((targetKmVal - reg.b) / reg.m) * 86400000);
+      const kmAtOneYear = reg.m * (targetDateVal.getTime() / 86400000) + reg.b;
+      const farDate = dateAt15k > targetDateVal ? dateAt15k : targetDateVal;
+      
+      const trendData = [];
+      const startT = new Date(lastReading.date).getTime();
+      const endT = farDate.getTime();
+      const steps = Math.min(Math.max((endT - startT) / (86400000 * 5), 10), 80); 
+      const stepTime = (endT - startT) / steps;
+
+      for(let i = 0; i <= steps; i++) {
+         const t = startT + (stepTime * i);
+         trendData.push({ x: new Date(t), y: reg.m * (t / 86400000) + reg.b });
+      }
+
+      datasets.push({
+        label: `Trend ${car.name}`,
+        data: trendData,
+        borderColor: car.color,
+        borderDash: [6, 6],
+        borderWidth: 2,
+        pointRadius: 0, 
+        pointHitRadius: 25, 
+        pointHoverRadius: 7, 
+        pointHoverBackgroundColor: car.color,
+        pointHoverBorderColor: '#ffffff',
+        pointHoverBorderWidth: 2.5,
+        fill: false,
+        isRegression: true 
+      });
+
+      datasets.push({
+        label: `Target 15k (${car.name})`,
+        data: [{ x: dateAt15k, y: targetKmVal }],
+        backgroundColor: '#10b981', pointStyle: 'triangle', pointRadius: 10, pointHitRadius: 10, showLine: false
+      });
+
+      datasets.push({
+        label: `Target 1 Anno (${car.name})`,
+        data: [{ x: targetDateVal, y: kmAtOneYear }],
+        backgroundColor: '#f59e0b', pointStyle: 'rectRot', pointRadius: 10, pointHitRadius: 10, showLine: false
+      });
+    }
+  });
+
+// --- INIZIO BLOCCO LEGENDA ---
+  datasets.push({
+    label: '      ',
+    data: [],
+    backgroundColor: 'rgba(0,0,0,0)',
+    pointStyle: 'circle',
+    borderWidth: 0
+  });
+  datasets.push({
+    label: `Limite 15.000 km`,
+    data: [],
+    backgroundColor: '#10b981',
+    pointStyle: 'triangle',
+    borderWidth: 0
+  });
+  datasets.push({
+    label: `Scadenza 1 Anno`,
+    data: [],
+    backgroundColor: '#f59e0b',
+    pointStyle: 'rectRot',
+    borderWidth: 0
+  });
+  datasets.push({
+    label: `Intervento`,
+    data: [],
+    backgroundColor: '#9ca3af',
+    pointStyle: 'rect',
+    borderWidth: 0
+  });
+// --- FINE BLOCCO LEGENDA ---
+
+  chart = new Chart(ctx, {
+    type: 'line',
+    data: { datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'nearest', intersect: true, axis: 'xy' },
+      animation: { duration: 300 },
+      hover: { animationDuration: 300 },
+      scales: {
+        x: { 
+          type: 'time', 
+          time: { unit: 'month' }, 
+          grid: { display: true, color: 'rgba(0,0,0,0.05)', lineWidth: 1 },
+          ticks: { autoSkip: true, maxTicksLimit: 20 }
+        },
+        y: { beginAtZero: false, grid: { color: 'rgba(0,0,0,0.05)', lineWidth: 1 } }
+      },
+      plugins: {
+        legend: { 
+            position: 'bottom', 
+            labels: { 
+                usePointStyle: true, 
+                boxWidth: 8, 
+                font: {family: 'Satoshi', weight: 'bold'},
+                filter: function(item) {
+                    if (item && item.text) {
+                        return !item.text.includes('Trend') && !item.text.includes('Target');
+                    }
+                    return true;
+                }
+            } 
+        },
+        annotation: {
+          annotations: {
+            lineToday: {
+              type: 'line',
+              xMin: today.getTime(), xMax: today.getTime(),
+              borderColor: 'rgba(150, 150, 150, 0.4)', borderWidth: 1.5, borderDash: [6, 6],
+              label: {
+                display: true, content: 'OGGI', position: 'start',
+                backgroundColor: 'rgba(255, 255, 255, 0.9)', color: '#888', font: { size: 10, weight: 'bold' }
+              }
+            }
+          }
+        },
+        tooltip: {
+          enabled: true,
+          backgroundColor: 'rgba(255, 255, 255, 0.95)',
+          titleColor: '#1a1814',
+          bodyColor: '#1a1814',
+          borderColor: '#e2e0db',
+          borderWidth: 1,
+          padding: 12,
+          usePointStyle: true,
+          callbacks: {
+            title: (items) => {
+                return new Date(items[0].parsed.x).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+            },
+            label: (item) => {
+                const isReg = item.dataset.isRegression;
+                const val = Math.round(item.parsed.y).toLocaleString();
+                if (isReg) return ` 🔮 Proiezione: ${val} km`;
+                let labelName = item.dataset.label || '';
+                labelName = labelName.replace(/Target 15k \((.*?)\)/, '$1').replace(/Target 1 Anno \((.*?)\)/, '$1');
+                return ` ${labelName}: ${val} km`;
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+// ── FUNZIONI CRUD ──────────────────────────────────────────────
+function toggleNoteField() {
+  const type = document.getElementById('f-type').value;
+  document.getElementById('note-group').style.display = (type === 'Rilevazione') ? 'none' : 'block';
+}
+
+function openModal(carId = 'picanto', idx = null) {
+  const modal = document.getElementById('entry-modal');
+  if (idx !== null) {
+    const r = db[carId].readings[idx];
+    document.getElementById('f-car').value = carId;
+    document.getElementById('f-car').disabled = true;
+    document.getElementById('f-km').value = r.km;
+    document.getElementById('f-date').value = r.date;
+    document.getElementById('f-type').value = r.type || 'Rilevazione';
+    document.getElementById('f-note').value = r.note || '';
+    document.getElementById('edit-index').value = idx;
+    document.getElementById('edit-car-id').value = carId;
+    document.getElementById('modal-title').innerText = "Modifica Lettura";
+  } else {
+    document.getElementById('f-car').disabled = false;
+    document.getElementById('f-km').value = '';
+    document.getElementById('f-date').valueAsDate = new Date();
+    document.getElementById('f-type').value = 'Rilevazione';
+    document.getElementById('f-note').value = '';
+    document.getElementById('edit-index').value = '';
+    document.getElementById('edit-car-id').value = '';
+    document.getElementById('modal-title').innerText = "Nuova Lettura";
+  }
+  toggleNoteField();
+  modal.classList.add('show');
+}
+
+function closeModal() { document.getElementById('entry-modal').classList.remove('show'); }
+
+function showNote(carId, idx) {
+  const car = db[carId];
+  const r = car && car.readings[idx];
+  if (!r) return;
+  document.getElementById('note-title').innerText = `${car.emoji} ${car.name}`;
+  document.getElementById('note-meta').innerText =
+    `${new Date(r.date).toLocaleDateString('it-IT')} · ${r.km.toLocaleString()} km · ${r.type}`;
+  document.getElementById('note-body').innerText = (r.note || '').trim() || 'Nessuna nota registrata.';
+  document.getElementById('note-modal').classList.add('show');
+}
+
+function closeNoteModal() { document.getElementById('note-modal').classList.remove('show'); }
+
+function saveEntry() {
+  const carId = document.getElementById('f-car').value;
+  const km = parseInt(document.getElementById('f-km').value);
+  const date = document.getElementById('f-date').value;
+  const type = document.getElementById('f-type').value;
+  const note = (type === 'Rilevazione') ? '' : document.getElementById('f-note').value.trim();
+  const idx = document.getElementById('edit-index').value;
+  const oldCarId = document.getElementById('edit-car-id').value;
+
+  if (isNaN(km) || !date) return alert("Inserisci dati validi.");
+
+  const entry = { date, km, type };
+  if (note) entry.note = note;
+
+  if (idx !== '') { db[oldCarId].readings[idx] = entry; }
+  else { db[carId].readings.push(entry); }
+  
+  refresh();
+  closeModal();
+}
+
+function editEntry(id, idx) { openModal(id, idx); }
+
+function deleteEntry(id, idx) {
+  if (confirm("Sei sicuro di voler eliminare questo record?")) {
+    db[id].readings.splice(idx, 1);
+    refresh();
+  }
+}
+
+function toggleTheme() {
+  const root = document.documentElement;
+  root.setAttribute('data-theme', root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+  updateChart();
+}
+
+// ── AVVIO ──────────────────────────────────────────────────────
+async function init() {
+  refresh(true);                      // mostra subito la cache locale
+  if (ghReady()) await ghPull(true);  // poi allinea al file vivo su GitHub
+  renderStorageBar();
+}
+
+// ── Service worker: abilita installazione come app e uso offline della pagina ──
+if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('sw.js').catch(function() {});
+  });
+}
+
+init();
+</script>
+</body>
+</html>
